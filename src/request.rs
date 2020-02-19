@@ -26,6 +26,12 @@ pub struct Request<State> {
     pub(crate) route_params: Vec<Params>,
 }
 
+#[derive(Debug)]
+pub enum ParamError<T: FromStr> {
+    NotFound,
+    ParsingError(T::Err),
+}
+
 impl<State> Request<State> {
     /// Create a new `Request`.
     pub(crate) fn new(
@@ -271,13 +277,17 @@ impl<State> Request<State> {
     /// # Panics
     ///
     /// Panic if `key` is not a parameter for the route.
-    pub fn param<T: FromStr>(&self, key: &str) -> Result<T, T::Err> {
+    pub fn param<T: FromStr>(&self, key: &str) -> Result<T, ParamError<T>> {
         self.route_params
             .iter()
             .rev()
             .find_map(|params| params.find(key))
-            .unwrap()
-            .parse()
+            .ok_or(ParamError::NotFound)
+            .and_then(|param| {
+                param
+                    .parse()
+                    .map_err(ParamError::ParsingError)
+            })
     }
 
     /// Get the URL querystring.

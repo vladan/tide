@@ -216,7 +216,7 @@ pub mod utils;
 pub use endpoint::Endpoint;
 pub use middleware::{Middleware, Next};
 pub use redirect::Redirect;
-pub use request::Request;
+pub use request::{ParamError, Request};
 pub use response::Response;
 pub use route::Route;
 pub use server::Server;

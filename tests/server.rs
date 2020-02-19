@@ -40,6 +40,37 @@ fn hello_world() -> Result<(), http_types::Error> {
 }
 
 #[test]
+fn hello_world_multipath() -> Result<(), http_types::Error> {
+    task::block_on(async {
+        let server = task::spawn(async {
+            let mut app = tide::new();
+
+            async fn greet(req: tide::Request<()>) -> Result<Response, http_types::Error> {
+                let name = req.param("name").unwrap_or("nori".to_owned());
+                Ok(tide::Response::new(StatusCode::Ok).body_string(format!("{} says hello", name)))
+            }
+
+            app.at("/").get(greet);
+            app.at("/:name").get(greet);
+            app.listen("localhost:8181").await?;
+            Result::<(), http_types::Error>::Ok(())
+        });
+
+        let client = task::spawn(async {
+            task::sleep(Duration::from_millis(200)).await;
+            let res = surf::get("http://localhost:8181/").recv_string().await?;
+            assert_eq!(res, "nori says hello".to_string());
+
+            let res = surf::get("http://localhost:8181/nor").recv_string().await?;
+            assert_eq!(res, "nor says hello".to_string());
+            Ok(())
+        });
+
+        server.race(client).await
+    })
+}
+
+#[test]
 fn echo_server() -> Result<(), http_types::Error> {
     task::block_on(async {
         let port = test_utils::find_port().await;
